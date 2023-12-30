@@ -1,0 +1,9 @@
+[submodule "spdlog"]
+path = spdlog
+url = https://github.com/gabime/spdlog.git
+[submodule "nats.c"]
+	path = nats.c
+	url = https://github.com/nats-io/nats.c.git
+[submodule "json"]
+	path = json
+	url = https://github.com/nlohmann/json.git

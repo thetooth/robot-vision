@@ -30,18 +30,10 @@ project(
 )
 
 find_package(OpenCV REQUIRED)
+add_library(opencv INTERFACE IMPORTED)
 
-set(OpenVINO_DIR "/opt/intel/openvino/runtime/cmake/")
+set(OpenVINO_DIR "/home/user/openvino_dist/runtime/cmake")
 find_package(OpenVINO CONFIG REQUIRED)
-
-# Set ONNXRUNTIME_VERSION
-set(ONNXRUNTIME_VERSION 1.16.3)
-
-if (USE_CUDA)
-    set(ONNXRUNTIME_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/onnxruntime-linux-x64-gpu-${ONNXRUNTIME_VERSION}")
-else ()
-    set(ONNXRUNTIME_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}")
-endif ()
 
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 # Clang compile commands are generated here:
@@ -58,13 +50,11 @@ add_subdirectory(src)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/spdlog)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/json)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/nats.c)
-# add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/openvino-2023.2.0)
 
 target_include_directories(${PROJECT_NAME} PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/spdlog/include
     ${OpenCV_INCLUDE_DIRS}
-    ${ONNXRUNTIME_ROOT}/include
-    /opt/intel/openvino/runtime/include
+    openvino::runtime
 )
 
 message(STATUS, ${OPENVINO_INCLUDE_DIR})
@@ -73,8 +63,7 @@ link_directories(lib)
 target_link_libraries(
     ${PROJECT_NAME}
     ${OpenCV_LIBS}
-    ${ONNXRUNTIME_ROOT}/lib/libonnxruntime.so
-    /opt/intel/openvino/runtime/lib/intel64/libopenvino.so
+    openvino::runtime
     nats_static
     nlohmann_json::nlohmann_json
 )

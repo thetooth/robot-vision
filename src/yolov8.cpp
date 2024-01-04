@@ -49,7 +49,8 @@ void YOLOV8::initialmodel()
         .tensor()
         .set_element_type(ov::element::u8)
         .set_layout("NHWC")
-        .set_color_format(ov::preprocess::ColorFormat::RGB);
+        .set_color_format(ov::preprocess::ColorFormat::RGB)
+        .set_shape({1, 640, 640, 3});
     ppp.input()
         .preprocess()
         .convert_element_type(ov::element::f32)
@@ -58,7 +59,7 @@ void YOLOV8::initialmodel()
     ppp.input().model().set_layout("NCHW");
     ppp.output().tensor().set_element_type(ov::element::f32);
     model = ppp.build();
-    compiled_model = core.compile_model(model, "CPU");
+    compiled_model = core.compile_model(model, "MULTI:GPU,GNA");
     infer_request = compiled_model.create_infer_request();
 }
 
@@ -173,10 +174,11 @@ void YOLOV8::draw_detection(cv::Mat &frame, Detection &detection)
     float ymax = box.y + box.height;
 
     // detection box
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<int> dis(100, 255);
-    cv::Scalar color = cv::Scalar(dis(gen), dis(gen), dis(gen));
+    // std::random_device rd;
+    // std::mt19937 gen(rd());
+    // std::uniform_int_distribution<int> dis(100, 255);
+    // cv::Scalar color = cv::Scalar(dis(gen), dis(gen), dis(gen));
+    cv::Scalar color = cv::Scalar(0, 255, 0);
     cv::rectangle(frame, cv::Point(box.x, box.y), cv::Point(xmax, ymax), color, 3);
 
     // Detection box text

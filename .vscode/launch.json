@@ -11,6 +11,25 @@
 			"program": "${command:cmake.launchTargetPath}",
 			"args": [],
 			"cwd": "${workspaceFolder}"
-		}
+		},
+		{
+            "name": "Remote Debug",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${command:cmake.launchTargetPath}",
+            "initCommands": [
+                "platform select remote-linux",
+                "platform connect connect://192.168.0.107:2346",
+                "settings set target.inherit-env false",
+            ],
+            "preRunCommands": [
+            ],
+            "console": "internalConsole",
+            "internalConsoleOptions": "openOnSessionStart",
+            "env": {
+                "TERM": "xterm",
+                "DISPLAY": ":0",
+            }
+        }
 	]
 }

@@ -59,7 +59,7 @@ void YOLOV8::initialmodel()
     ppp.input().model().set_layout("NCHW");
     ppp.output().tensor().set_element_type(ov::element::f32);
     model = ppp.build();
-    compiled_model = core.compile_model(model, "MULTI:GPU,GNA");
+    compiled_model = core.compile_model(model, "GPU");
     infer_request = compiled_model.create_infer_request();
 }
 
@@ -110,7 +110,7 @@ std::vector<Detection> YOLOV8::postprocess(float *detections, ov::Shape &output_
 
     for (int i = 0; i < det_output.cols; ++i)
     {
-        const cv::Mat classes_scores = det_output.col(i).rowRange(4, 84);
+        const cv::Mat classes_scores = det_output.col(i).rowRange(4, 5);
         cv::Point class_id_point;
         double score;
         cv::minMaxLoc(classes_scores, nullptr, &score, nullptr, &class_id_point);

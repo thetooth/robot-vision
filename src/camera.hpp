@@ -49,4 +49,37 @@ namespace Camera
         return true;
     }
 
+    inline static cv::Mat inversePerspective(const cv::Mat &rvec, const cv::Mat &tvec)
+    {
+        cv::Mat R;
+        cv::Rodrigues(rvec, R);
+        R = R.t();
+        cv::Mat invTvec = -R * tvec;
+        cv::Mat invRvec;
+        cv::Rodrigues(R, invRvec);
+        return invRvec;
+    }
+
+    inline static std::pair<cv::Mat, cv::Mat> relativePosition(const cv::Mat &rvec1, const cv::Mat &tvec1,
+                                                               const cv::Mat &rvec2, const cv::Mat &tvec2)
+    {
+        cv::Mat rvec1_reshape = rvec1.reshape(3, 1);
+        cv::Mat tvec1_reshape = tvec1.reshape(3, 1);
+        cv::Mat rvec2_reshape = rvec2.reshape(3, 1);
+        cv::Mat tvec2_reshape = tvec2.reshape(3, 1);
+
+        // Inverse the second marker, the right one in the image
+        cv::Mat invRvec = inversePerspective(rvec2_reshape, tvec2_reshape);
+
+        cv::Mat orgRvec = inversePerspective(invRvec, -invRvec * tvec2_reshape);
+
+        cv::Mat composedRvec, composedTvec;
+        cv::composeRT(rvec1_reshape, tvec1_reshape, invRvec, -invRvec * tvec2_reshape, composedRvec, composedTvec);
+
+        composedRvec = composedRvec.reshape(3, 1);
+        composedTvec = composedTvec.reshape(3, 1);
+
+        return std::make_pair(composedRvec, composedTvec);
+    }
+
 } // namespace Camera

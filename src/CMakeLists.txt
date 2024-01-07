@@ -2,6 +2,7 @@ option(ROBOTSIM_ADDR_SANITIZE "Build with fsanitize=address" OFF)
 
 set(sources_list
     main.cpp
+    flatten.cpp
     yolov8.cpp
     nc.cpp
 )

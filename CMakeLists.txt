@@ -29,6 +29,7 @@ project(
         HOMEPAGE_URL ${ONLINE_REPOSITORY}
 )
 
+set(OpenCV_DIR "/home/user/opencv_dist/lib/cmake/opencv4")
 find_package(OpenCV REQUIRED)
 add_library(opencv INTERFACE IMPORTED)
 

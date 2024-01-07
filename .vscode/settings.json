@@ -103,6 +103,16 @@
     "ranges": "cpp",
     "span": "cpp",
     "deque": "cpp",
-    "valarray": "cpp"
-  }
+    "valarray": "cpp",
+    "semaphore": "cpp",
+    "csignal": "cpp",
+    "any": "cpp",
+    "charconv": "cpp",
+    "codecvt": "cpp",
+    "complex": "cpp",
+    "regex": "cpp",
+    "stop_token": "cpp",
+    "cfenv": "cpp"
+  },
+  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
 }

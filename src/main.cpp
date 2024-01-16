@@ -8,8 +8,6 @@
 #include <opencv2/objdetect.hpp>
 #include <opencv2/objdetect/aruco_detector.hpp>
 
-#include <openvino/openvino.hpp>
-
 #include <chrono>
 
 #include "camera.hpp"
@@ -33,10 +31,6 @@ int main()
         return 1;
     }
 
-    // AI Core
-    // Config config = {0.2, 0.0, 0.0, 640, 640, "best.onnx"};
-    // YOLOV8 inference(config);
-
     // Camera
     cv::VideoCapture inputVideo;
     inputVideo.open(0);
@@ -51,7 +45,7 @@ int main()
     int markersY = 7;
 
     // Camera calibration
-    if (!Camera::readCameraParameters("camera.yml", cameraMatrix, distCoeffs))
+    if (!Camera::readCameraParameters("camera2.yml", cameraMatrix, distCoeffs))
     {
         spdlog::error("Invalid camera.yml file");
         return 1;
@@ -73,11 +67,18 @@ int main()
     }
 
     // Set coordinate system
-    cv::Mat objPoints(4, 1, CV_32FC3);
-    objPoints.ptr<cv::Vec3f>(0)[0] = cv::Vec3f(-markerLength / 2.f, markerLength / 2.f, 0);
-    objPoints.ptr<cv::Vec3f>(0)[1] = cv::Vec3f(markerLength / 2.f, markerLength / 2.f, 0);
-    objPoints.ptr<cv::Vec3f>(0)[2] = cv::Vec3f(markerLength / 2.f, -markerLength / 2.f, 0);
-    objPoints.ptr<cv::Vec3f>(0)[3] = cv::Vec3f(-markerLength / 2.f, -markerLength / 2.f, 0);
+    float boardLength = 37;
+    cv::Mat boardPoints(4, 1, CV_32FC3);
+    boardPoints.ptr<cv::Vec3f>(0)[0] = cv::Vec3f(-boardLength / 2.f, boardLength / 2.f, 0);
+    boardPoints.ptr<cv::Vec3f>(0)[1] = cv::Vec3f(boardLength / 2.f, boardLength / 2.f, 0);
+    boardPoints.ptr<cv::Vec3f>(0)[2] = cv::Vec3f(boardLength / 2.f, -boardLength / 2.f, 0);
+    boardPoints.ptr<cv::Vec3f>(0)[3] = cv::Vec3f(-boardLength / 2.f, -boardLength / 2.f, 0);
+    float targetLength = 53;
+    cv::Mat targetPoints(4, 1, CV_32FC3);
+    targetPoints.ptr<cv::Vec3f>(0)[0] = cv::Vec3f(-targetLength / 2.f, targetLength / 2.f, 0);
+    targetPoints.ptr<cv::Vec3f>(0)[1] = cv::Vec3f(targetLength / 2.f, targetLength / 2.f, 0);
+    targetPoints.ptr<cv::Vec3f>(0)[2] = cv::Vec3f(targetLength / 2.f, -targetLength / 2.f, 0);
+    targetPoints.ptr<cv::Vec3f>(0)[3] = cv::Vec3f(-targetLength / 2.f, -targetLength / 2.f, 0);
 
     cv::namedWindow("out", cv::WINDOW_NORMAL);
     cv::setWindowProperty("out", cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
@@ -94,53 +95,25 @@ int main()
 
         cv::Mat image, out;
         inputVideo.retrieve(image);
-        // cv::resize(image, out, cv::Size(640, 640));
+        // cv::resize(image, out, cv::Size(640, 480));
         image.copyTo(out);
         cameraTime = std::chrono::high_resolution_clock::now().time_since_epoch() - start;
-
-        // auto detections = inference.detect(out);
-        // inferenceTime = std::chrono::high_resolution_clock::now().time_since_epoch() - start - cameraTime;
-
-        // for (auto &&detection : detections)
-        // {
-        //     if (detection.confidence < 0.75)
-        //     {
-        //         // continue;
-        //     }
-        //     // if (coconame[detection.class_id] != "cup")
-        //     // {
-        //     //     continue;
-        //     // }
-        //     auto box = detection.box;
-        //     NC::Pose pose;
-        //     pose.x = -box.x / 2 + box.width / 2;
-        //     pose.y = box.y + box.height / 2;
-
-        //     json j = {{"command", "goto"}, {"pose", pose}};
-        //     std::string msg = j.dump();
-
-        //     // spdlog::info("Sending: {}", msg);
-
-        //     natsStatus pubStatus = natsConnection_PublishString(nc, "motion.command", msg.c_str());
-        //     if (pubStatus != NATS_OK)
-        //     {
-        //         spdlog::error("NATS publish failure: {}", natsStatus_GetText(pubStatus));
-        //     }
-        //     inference.draw_detection(out, detection);
-        // }
         markerTime = std::chrono::high_resolution_clock::now().time_since_epoch() - start - cameraTime - inferenceTime;
 
         std::vector<int> markerIds;
         std::vector<std::vector<cv::Point2f>> markerCorners;
-        cv::Mat gray;
-        cv::threshold(out, gray, 100, 255, cv::THRESH_BINARY);
-        markerDetector.detectMarkers(gray, markerCorners, markerIds);
+        // cv::Mat out;
+        // cv::threshold(out, out, 100, 255, cv::THRESH_TRUNC);
+        markerDetector.detectMarkers(out, markerCorners, markerIds);
         // If at least one marker detected
         if (markerIds.size() > 0)
         {
             cv::aruco::drawDetectedMarkers(out, markerCorners, markerIds);
-            // int nMarkers = markerCorners.size();
-            // std::vector<cv::Vec3d> rvecs(nMarkers), tvecs(nMarkers);
+            int nMarkers = markerCorners.size();
+            std::vector<cv::Mat> rvecs(nMarkers), tvecs(nMarkers);
+            cv::Mat refRvec, refTvec, targetRvec, targetTvec;
+            std::vector<cv::Point2f> refCorners, targetCorners;
+            bool haveRef = false, haveTarget = false;
 
             // Filter board markers
             std::vector<int> boardIds;
@@ -154,65 +127,75 @@ int main()
                 }
             }
 
-            cv::Vec3d rvec, tvec;
             if (boardIds.size() > 0)
             {
                 // Get object and image points for the solvePnP function
                 cv::Mat objPoints, imgPoints;
                 board.matchImagePoints(boardCorners, boardIds, objPoints, imgPoints);
-                // Find pose
-                cv::solvePnP(objPoints, imgPoints, cameraMatrix, distCoeffs, rvec, tvec);
-                // If at least one board marker detected
-                auto markersOfBoardDetected = (int)objPoints.total() / 4;
-                if (markersOfBoardDetected > 0)
-                {
-                    cv::drawFrameAxes(out, cameraMatrix, distCoeffs, rvec, tvec, 100);
-                }
+                cv::solvePnP(objPoints, imgPoints, cameraMatrix, distCoeffs, refRvec, refTvec);
+                haveRef = true;
             }
 
-            // // Calculate pose for each marker
-            // for (int i = 0; i < nMarkers; i++)
-            // {
-            //     solvePnP(objPoints, markerCorners.at(i), cameraMatrix, distCoeffs, rvecs.at(i), tvecs.at(i));
-            // }
-
-            // Draw axis for each marker
             for (unsigned int i = 0; i < markerIds.size(); i++)
             {
                 if (markerIds[i] == 248)
                 {
-                    cv::Mat R;
-                    cv::Rodrigues(rvec, R);
-                    R = R.t();
-                    cv::Mat tvec2 = -R * cv::Mat(tvec);
-                    // cv::Rodrigues(R, rvec);
+                    cv::solvePnP(targetPoints, markerCorners[i], cameraMatrix, distCoeffs, rvecs[i], tvecs[i]);
+                }
+                else
+                {
+                    cv::solvePnP(boardPoints, markerCorners[i], cameraMatrix, distCoeffs, rvecs[i], tvecs[i]);
+                }
+                // cv::solvePnPRefineLM(objPoints, markerCorners[i], cameraMatrix, distCoeffs, rvecs[i], tvecs[i]);
 
-                    cv::Mat loc = tvec2 * cv::Mat(markerCorners[i]);
-
-                    NC::Pose pose;
-                    // pose.x = tvec2.at<double>(0) - markerLength / 2;
-                    // pose.y = tvec2.at<double>(1) + markerLength / 2;
-                    pose.x = loc.at<double>(0);
-                    pose.y = loc.at<double>(1);
-
-                    spdlog::info("Marker {} at ({}, {})", markerIds[i], pose.x, pose.y);
-
-                    json j = {{"command", "goto"}, {"pose", pose}};
-                    std::string msg = j.dump();
-
-                    natsStatus pubStatus = natsConnection_PublishString(nc, "motion.command", msg.c_str());
-                    if (pubStatus != NATS_OK)
-                    {
-                        spdlog::error("NATS publish failure: {}", natsStatus_GetText(pubStatus));
-                    }
+                // if (markerIds[i] == 8)
+                // {
+                //     refRvec = rvecs[i];
+                //     refTvec = tvecs[i];
+                //     refCorners = markerCorners[i];
+                //     haveRef = true;
+                // }
+                if (markerIds[i] == 248)
+                {
+                    targetRvec = rvecs[i];
+                    targetTvec = tvecs[i];
+                    targetCorners = markerCorners[i];
+                    haveTarget = true;
                 }
             }
+            if (markerIds.size() > 1 && haveRef && haveTarget)
+            {
+                // Get rotation matrix from rotation vectors
+                cv::Mat R0;
+                cv::Rodrigues(refRvec, R0);
+                cv::Mat R248;
+                cv::Rodrigues(targetRvec, R248);
 
-            // Flatten image
-            // if (nMarkers >= 4)
-            // {
-            //     Camera::flatten(out, markerIds, markerCorners);
-            // }
+                // Calculate the relative translation and rotation between the markers
+                cv::Mat relativeTvec = R0.t() * (targetTvec - refTvec);
+                cv::Mat relativeRvec;
+                cv::Rodrigues(R0.t() * R248, relativeRvec);
+
+                // spdlog::info("Relative position: ({}, {}, {})", relativeTvec.at<double>(0),
+                // relativeTvec.at<double>(1),
+                //  relativeTvec.at<double>(2));
+
+                NC::Pose pose;
+                pose.x = relativeTvec.at<double>(0) - markerLength;
+                pose.y = -relativeTvec.at<double>(1);
+                pose.z = relativeTvec.at<double>(2);
+
+                spdlog::info("Relative position: ({}, {}, {})", pose.x, pose.y, pose.z);
+
+                json j = {{"command", "goto"}, {"pose", pose}};
+                std::string msg = j.dump();
+
+                natsStatus pubStatus = natsConnection_PublishString(nc, "motion.command", msg.c_str());
+                if (pubStatus != NATS_OK)
+                {
+                    spdlog::error("NATS publish failure: {}", natsStatus_GetText(pubStatus));
+                }
+            }
         }
         arucoTime = std::chrono::high_resolution_clock::now().time_since_epoch() - start - cameraTime - inferenceTime -
                     markerTime;

@@ -49,7 +49,42 @@ namespace Camera
         return true;
     }
 
-    inline static cv::Mat inversePerspective(const cv::Mat &rvec, const cv::Mat &tvec)
+    inline static cv::Mat getRelativeMarkerPosition(const cv::Mat &cameraMatrix, const cv::Mat &distCoeffs,
+                                                    const std::vector<cv::Point2f> &imagePoints0,
+                                                    const std::vector<cv::Point2f> &imagePoints248,
+                                                    const cv::Mat &rvec0, const cv::Mat &tvec0)
+    {
+
+        // Define 3D coordinates of markers in the physical world
+        std::vector<cv::Point3f> objectPoints;
+        objectPoints.push_back(cv::Point3f(0.0, 0.0, 0.0)); // Marker ID 0, the fixed marker
+        objectPoints.push_back(cv::Point3f(1.0, 0.0, 0.0)); // Marker ID 248, the relative marker
+
+        // Convert rotation vector of the fixed marker to rotation matrix
+        cv::Mat R0;
+        cv::Rodrigues(rvec0, R0);
+
+        // Project the 3D points of the markers into image space for both markers
+        std::vector<cv::Point2f> projectedPoints0, projectedPoints248;
+        cv::projectPoints(objectPoints, rvec0, tvec0, cameraMatrix, distCoeffs, projectedPoints0);
+
+        // Solve PnP for the relative marker (ID 248)
+        cv::Mat rvec248, tvec248;
+        cv::solvePnP(objectPoints, imagePoints248, cameraMatrix, distCoeffs, rvec248, tvec248);
+
+        // Convert the rotation vector to a rotation matrix
+        cv::Mat R248;
+        cv::Rodrigues(rvec248, R248);
+
+        // Calculate the relative translation and rotation between the markers
+        cv::Mat relativeTvec = R0.t() * (tvec248 - tvec0);
+        cv::Mat relativeRvec;
+        cv::Rodrigues(R0.t() * R248, relativeRvec);
+
+        return relativeTvec;
+    }
+
+    inline static cv::Mat inversePerspective(const cv::Vec3d rvec, const cv::Vec3d tvec)
     {
         cv::Mat R;
         cv::Rodrigues(rvec, R);
@@ -60,21 +95,22 @@ namespace Camera
         return invRvec;
     }
 
-    inline static std::pair<cv::Mat, cv::Mat> relativePosition(const cv::Mat &rvec1, const cv::Mat &tvec1,
-                                                               const cv::Mat &rvec2, const cv::Mat &tvec2)
+    inline static std::pair<cv::Mat, cv::Mat> relativePosition(const cv::Vec3d rvec1, const cv::Vec3d tvec1,
+                                                               const cv::Vec3d rvec2, const cv::Vec3d tvec2)
     {
-        cv::Mat rvec1_reshape = rvec1.reshape(3, 1);
-        cv::Mat tvec1_reshape = tvec1.reshape(3, 1);
-        cv::Mat rvec2_reshape = rvec2.reshape(3, 1);
-        cv::Mat tvec2_reshape = tvec2.reshape(3, 1);
+        // cv::Mat rvec1_reshape = rvec1.reshape(3, 1);
+        // cv::Mat tvec1_reshape = tvec1.reshape(3, 1);
+        // cv::Mat rvec2_reshape = rvec2.reshape(3, 1);
+        // cv::Mat tvec2_reshape = tvec2.reshape(3, 1);
 
         // Inverse the second marker, the right one in the image
-        cv::Mat invRvec = inversePerspective(rvec2_reshape, tvec2_reshape);
+        cv::Mat invRvec = inversePerspective(rvec2, tvec2);
+        cv::Mat invTvec = (-invRvec).t() * tvec2;
 
-        cv::Mat orgRvec = inversePerspective(invRvec, -invRvec * tvec2_reshape);
+        cv::Mat orgRvec = inversePerspective(invRvec, invTvec);
 
         cv::Mat composedRvec, composedTvec;
-        cv::composeRT(rvec1_reshape, tvec1_reshape, invRvec, -invRvec * tvec2_reshape, composedRvec, composedTvec);
+        cv::composeRT(rvec1, tvec1, invRvec, -invRvec * tvec2, composedRvec, composedTvec);
 
         composedRvec = composedRvec.reshape(3, 1);
         composedTvec = composedTvec.reshape(3, 1);

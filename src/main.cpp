@@ -38,6 +38,7 @@ int main()
     cv::VideoCapture inputVideo;
     inputVideo.open(0);
     inputVideo.set(cv::CAP_PROP_FRAME_WIDTH, 640);
+    inputVideo.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
     inputVideo.set(cv::CAP_PROP_FPS, 60);
     // inputVideo.set(cv::CAP_PROP_CONVERT_RGB, false);
     // cv::Mat cameraMatrix, distCoeffs;

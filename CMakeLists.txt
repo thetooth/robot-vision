@@ -69,5 +69,5 @@ target_link_libraries(
 )
 
 # Copy yolov8n.onnx file to the same folder of the executable file
-configure_file(yolov8n.onnx ${CMAKE_CURRENT_BINARY_DIR}/yolov8n.onnx COPYONLY)
-configure_file(yolov8s.onnx ${CMAKE_CURRENT_BINARY_DIR}/yolov8s.onnx COPYONLY)
+# configure_file(yolov8n.onnx ${CMAKE_CURRENT_BINARY_DIR}/yolov8n.onnx COPYONLY)
+# configure_file(yolov8s.onnx ${CMAKE_CURRENT_BINARY_DIR}/yolov8s.onnx COPYONLY)
